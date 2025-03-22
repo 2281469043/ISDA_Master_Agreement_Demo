@@ -22,8 +22,8 @@ master_agreement_address = None
 deployed_derivatives = []
 last_deployed_derivative = None
 
-# Load the Master Agreement ABI from file (please ensure the file path is correct)
-with open('/Users/kaiyang/Desktop/ISDA_Master_Contrat/ISDA/front/abi/MACAbi.json', 'r') as f:
+# Load the Master Agreement ABI from file
+with open('abi/MACAbi.json', 'r') as f:
     data = json.load(f)
     if isinstance(data, dict) and "abi" in data:
         master_agreement_abi = data["abi"]
