@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ISDA Master Contract Interaction Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .container { max-width: 1000px; margin: 20px auto; }
+    .section { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; }
+    .columns { display: flex; justify-content: space-between; }
+    .column { width: 48%; border: 1px solid #ccc; padding: 10px; }
+    label { display: inline-block; width: 220px; }
+    input[type="text"], input[type="password"] { width: 300px; padding: 5px; }
+    button { padding: 5px 10px; margin-top: 5px; }
+    .flash { padding: 5px; margin-bottom: 10px; }
+    .flash.success { background: #cfc; }
+    .flash.error { background: #fcc; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ISDA Master Contract Interaction Demo</h1>
+    
+    <!-- Display flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    
+    <!-- Global Settings: Accounts and Master Contract Address -->
+    <div class="section">
+      <h2>Global Settings</h2>
+      <form method="post" action="{{ url_for('set_accounts') }}">
+        <div>
+          <label for="party_a_pk">Party A Private Key:</label>
+          <input type="password" id="party_a_pk" name="party_a_pk" placeholder="Enter Party A private key">
+        </div>
+        <div>
+          <label for="party_b_pk">Party B Private Key:</label>
+          <input type="password" id="party_b_pk" name="party_b_pk" placeholder="Enter Party B private key">
+        </div>
+        <button type="submit">Set Accounts</button>
+      </form>
+      {% if party_a %}
+        <p>Party A Address: {{ party_a.address }}</p>
+      {% endif %}
+      {% if party_b %}
+        <p>Party B Address: {{ party_b.address }}</p>
+      {% endif %}
+      <form method="post" action="{{ url_for('set_master') }}">
+        <div>
+          <label for="master_address">Master Contract Address:</label>
+          <input type="text" id="master_address" name="master_address" placeholder="e.g., 0xABC..." value="{{ master_agreement_address or '' }}">
+        </div>
+        <button type="submit">Set Master Contract Address</button>
+      </form>
+      {% if master_agreement_address %}
+        <p>Current Master Contract Address: {{ master_agreement_address }}</p>
+      {% endif %}
+    </div>
+    
+    <!-- Deploy Derivative Contract -->
+    <div class="section">
+      <h2>Deploy Derivative Contract</h2>
+      <form method="post" action="{{ url_for('deploy_derivative') }}">
+        <div>
+          <label for="derivative_path">Contract Source Path:</label>
+          <input type="text" id="derivative_path" name="derivative_path" placeholder="e.g., /Users/yourname/.../DerivativeContract.sol">
+        </div>
+        <div>
+          <label for="deploy_party_a">Party A Address:</label>
+          <input type="text" id="deploy_party_a" name="deploy_party_a" placeholder="Enter Party A address" value="{{ party_a.address if party_a else '' }}">
+        </div>
+        <div>
+          <label for="deploy_party_b">Party B Address:</label>
+          <input type="text" id="deploy_party_b" name="deploy_party_b" placeholder="Enter Party B address" value="{{ party_b.address if party_b else '' }}">
+        </div>
+        <div>
+          <label for="deposit_amount">Deposit Amount (Ether):</label>
+          <input type="text" id="deposit_amount" name="deposit_amount" placeholder="e.g., 0.5">
+        </div>
+        <button type="submit">Deploy Derivative Contract</button>
+      </form>
+      
+      <!-- Display last deployed contract address -->
+      {% if last_deployed_derivative %}
+        <p>Last Deployed Contract Address: <strong>{{ last_deployed_derivative }}</strong></p>
+      {% endif %}
+    </div>
+    
+    <!-- Register Derivative Contract -->
+    <div class="section">
+      <h2>Register Derivative Contract</h2>
+      <form method="post" action="{{ url_for('register_derivative_contract') }}">
+        <div>
+          <label for="derivative_contract">Derivative Contract Address:</label>
+          <input type="text" id="derivative_contract" name="derivative_contract" placeholder="Enter derivative contract address">
+        </div>
+        <div>
+          <label for="party_a_input">Party A Address:</label>
+          <input type="text" id="party_a_input" name="party_a_input" placeholder="Enter Party A address" value="{{ party_a.address if party_a else '' }}">
+        </div>
+        <div>
+          <label for="party_b_input">Party B Address:</label>
+          <input type="text" id="party_b_input" name="party_b_input" placeholder="Enter Party B address" value="{{ party_b.address if party_b else '' }}">
+        </div>
+        <button type="submit">Register Derivative Contract</button>
+      </form>
+    </div>
+    
+    <!-- Unified Event Reporting -->
+    <div class="section">
+      <h2>Event Reporting</h2>
+      <form method="post" action="{{ url_for('report_event') }}" id="report_event_form">
+        <div>
+          <label for="report_derivative">Derivative Contract Address:</label>
+          <input type="text" id="report_derivative" name="report_derivative" placeholder="Enter derivative contract address">
+        </div>
+        <div>
+          <label for="reporter">Your Report Address:</label>
+          <input type="text" id="reporter" name="reporter" placeholder="Enter your report address">
+        </div>
+        <div>
+          <label for="event_type">Select Event Type:</label>
+          <select id="event_type" name="event_type" onchange="showEventFields()">
+            <option value="">Please select</option>
+            <option value="default">Default Event</option>
+            <option value="bankruptcy">Bankruptcy Event</option>
+            <option value="payment_failed">Payment Failed Event</option>
+          </select>
+        </div>
+        
+        <!-- Default event input: Reason -->
+        <div id="default_fields" style="display:none;">
+          <label for="reason">Reason:</label>
+          <input type="text" id="reason" name="reason" placeholder="Enter the reason for the event">
+        </div>
+        
+        <!-- Bankruptcy event input: Details -->
+        <div id="bankruptcy_fields" style="display:none;">
+          <label for="details">Details:</label>
+          <input type="text" id="details" name="details" placeholder="Enter bankruptcy details">
+        </div>
+        
+        <!-- Payment failed event input: Obligation ID -->
+        <div id="payment_failed_fields" style="display:none;">
+          <label for="obligation_id">Obligation ID:</label>
+          <input type="text" id="obligation_id" name="obligation_id" placeholder="Enter obligation ID">
+        </div>
+        
+        <button type="submit">Report Event</button>
+      </form>
+    </div>
+
+    <script>
+      function showEventFields() {
+          var eventType = document.getElementById("event_type").value;
+          document.getElementById("default_fields").style.display = (eventType === "default") ? "block" : "none";
+          document.getElementById("bankruptcy_fields").style.display = (eventType === "bankruptcy") ? "block" : "none";
+          document.getElementById("payment_failed_fields").style.display = (eventType === "payment_failed") ? "block" : "none";
+      }
+    </script>
+    
+    <!-- Two-column layout for Party A and Party B termination operations -->
+    <div class="columns">
+      <!-- Party A Operations -->
+      <div class="column">
+        <h2>Party A Operations</h2>
+        <p>Account Address: {{ party_a.address if party_a else "Not set" }}</p>
+        <!-- Propose Termination -->
+        <form method="post" action="{{ url_for('propose_termination_a') }}">
+          <label for="propose_derivative_a">Propose Termination (Derivative Address):</label>
+          <input type="text" id="propose_derivative_a" name="propose_derivative_a" placeholder="Enter derivative contract address">
+          <button type="submit">Propose Termination</button>
+        </form>
+        <!-- Vote on Termination -->
+        <form method="post" action="{{ url_for('vote_termination_a') }}">
+          <label for="proposal_id_a">Vote on Termination (Proposal ID):</label>
+          <input type="text" id="proposal_id_a" name="proposal_id_a" placeholder="Enter proposal ID">
+          <button type="submit">Vote</button>
+        </form>
+      </div>
+      
+      <!-- Party B Operations -->
+      <div class="column">
+        <h2>Party B Operations</h2>
+        <p>Account Address: {{ party_b.address if party_b else "Not set" }}</p>
+        <!-- Propose Termination -->
+        <form method="post" action="{{ url_for('propose_termination_b') }}">
+          <label for="propose_derivative_b">Propose Termination (Derivative Address):</label>
+          <input type="text" id="propose_derivative_b" name="propose_derivative_b" placeholder="Enter derivative contract address">
+          <button type="submit">Propose Termination</button>
+        </form>
+        <!-- Vote on Termination -->
+        <form method="post" action="{{ url_for('vote_termination_b') }}">
+          <label for="proposal_id_b">Vote on Termination (Proposal ID):</label>
+          <input type="text" id="proposal_id_b" name="proposal_id_b" placeholder="Enter proposal ID">
+          <button type="submit">Vote</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Query Derivative Contract Information -->
+    <div class="section">
+      <h2>Query Derivative Contract Information</h2>
+      <div class="columns">
+        <!-- Query Balance -->
+        <div class="column">
+          <h3>Query Balance</h3>
+          <form method="post" action="{{ url_for('query_balance') }}">
+            <div>
+              <label for="query_derivative_balance">Derivative Contract Address:</label>
+              <input type="text" id="query_derivative_balance" name="query_derivative_balance" placeholder="Enter derivative contract address">
+            </div>
+            <button type="submit">Query Balance</button>
+          </form>
+        </div>
+        <!-- Query Termination Status -->
+        <div class="column">
+          <h3>Query Termination Status</h3>
+          <form method="post" action="{{ url_for('query_termination') }}">
+            <div>
+              <label for="query_derivative_termination">Derivative Contract Address:</label>
+              <input type="text" id="query_derivative_termination" name="query_derivative_termination" placeholder="Enter derivative contract address">
+            </div>
+            <button type="submit">Query Termination Status</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Clear Balance Operation -->
+    <div class="section">
+      <h2>Clear Balance</h2>
+      <form method="post" action="{{ url_for('clear_balance') }}">
+        <div>
+          <label for="clear_derivative">Derivative Contract Address:</label>
+          <input type="text" id="clear_derivative" name="clear_derivative" placeholder="Enter derivative contract address">
+        </div>
+        <div>
+          <label for="amount_a">Amount for Party A:</label>
+          <input type="text" id="amount_a" name="amount_a" placeholder="Enter amount">
+        </div>
+        <div>
+          <label for="amount_b">Amount for Party B:</label>
+          <input type="text" id="amount_b" name="amount_b" placeholder="Enter amount">
+        </div>
+        <button type="submit">Clear Balance</button>
+      </form>
+    </div>
+    
+  </div>
+</body>
+</html>
